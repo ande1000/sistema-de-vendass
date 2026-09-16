@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>o águia — loja</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="site-topo">
+  <div>
+    <h1 id="nomeLojaSite">nome da loja</h1>
+    <span class="status-loja-tag fechada" id="statusLojaTag">carregando...</span>
+  </div>
+  <div class="avatar-loja" id="avatarLojaSite"></div>
+</header>
+
+<main class="site-lista" id="siteLista">
+  <p class="vazio-msg">carregando cardápio...</p>
+</main>
+
+<!-- CHAT -->
+<div class="chat-toggle-btn" id="chatToggleBtn">💬</div>
+<div class="chat-janela" id="chatJanela">
+  <div class="chat-header">
+    <span id="chatHeaderTitulo">fale com a loja</span>
+    <span class="fechar" id="chatFechar">✕</span>
+  </div>
+  <div id="chatConversaView" style="display:flex; flex:1; flex-direction:column;">
+    <div class="chat-mensagens" id="chatMensagens"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="digite uma mensagem...">
+      <button id="chatEnviar">enviar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/site.js"></script>
+</body>
+</html>
