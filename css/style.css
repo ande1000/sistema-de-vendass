@@ -250,15 +250,20 @@ input, textarea { font-family: inherit; }
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 .btn-abrir-loja, .btn-fechar-loja, .btn-relatorio {
-  padding: 14px 30px;
+  padding: 12px 20px;
   border-radius: 999px;
   font-weight: 800;
-  font-size: 1.02rem;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+.status-loja-box .badge { white-space: nowrap; flex-shrink: 0; }
 .btn-abrir-loja { background: var(--green); color: #103310; }
 .btn-abrir-loja.ativo { outline: 3px solid #103310; }
 .btn-fechar-loja { background: var(--purple); color: #fff; }
