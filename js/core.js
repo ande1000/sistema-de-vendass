@@ -148,6 +148,22 @@ function tocarSomAtraso() {
   tocarTom(ctx, 400, 0.56, 0.2);
 }
 
+// Cliente pediu uma previsão de +5 minutos
+function tocarSomPrevisao() {
+  const ctx = novoAudioContext();
+  if (!ctx) return;
+  tocarTom(ctx, 700, 0, 0.2);
+  tocarTom(ctx, 900, 0.18, 0.2);
+}
+
+// Cliente cancelou o pedido
+function tocarSomCancelado() {
+  const ctx = novoAudioContext();
+  if (!ctx) return;
+  tocarTom(ctx, 350, 0, 0.3);
+  tocarTom(ctx, 300, 0.28, 0.35);
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str || "";
