@@ -181,7 +181,11 @@ document.getElementById("btnFinalizarCompra").addEventListener("click", async ()
   const clienteSnap = await clienteRef.get();
   const cliente = clienteSnap.data() || {};
 
-  const itensPedido = carrinho.map(i => ({ nome: `${i.qtd}x ${i.nome}`, valor: i.valor * i.qtd }));
+  const itensPedido = carrinho.map(i => ({
+    nome: `${i.qtd}x ${i.nome}`,
+    valor: i.valor * i.qtd,
+    foto: (produtosCache[i.produtoId] && produtosCache[i.produtoId].foto) || ""
+  }));
 
   await lojaRef.collection("pedidos").add({
     clienteId,
@@ -209,6 +213,115 @@ document.getElementById("btnFinalizarCompra").addEventListener("click", async ()
   let mensagem = `Pedido feito: ${resumoItens} — total ${formatarValor(totalPedido)} — pagamento: ${formaPagamento}`;
   if (observacao) mensagem += ` — obs: ${observacao}`;
   await enviarMensagemAutomatica(mensagem);
+});
+
+/* ==========================================================================
+   VER PEDIDO (acompanhar o pedido feito, pedir previsão, cancelar)
+   ========================================================================== */
+let meuPedidoAtual = null;   // dados do pedido ativo mais recente
+let meuPedidoAtualId = null;
+let intervaloContadorModal = null;
+
+lojaRef.collection("pedidos").where("clienteId", "==", clienteId)
+  .orderBy("criadoEm", "desc")
+  .onSnapshot(snap => {
+    // pega o pedido mais recente que ainda não saiu nem foi cancelado
+    let encontrado = null, encontradoId = null;
+    snap.forEach(doc => {
+      if (encontrado) return;
+      const p = doc.data();
+      if (!p.saiu && !p.cancelado) { encontrado = p; encontradoId = doc.id; }
+    });
+
+    meuPedidoAtual = encontrado;
+    meuPedidoAtualId = encontradoId;
+
+    document.getElementById("verPedidoWrap").style.display = encontrado ? "flex" : "none";
+
+    // se o modal estiver aberto, atualiza o conteúdo dele em tempo real
+    if (document.getElementById("modalPedidoOverlay").classList.contains("aberto")) {
+      preencherModalPedido();
+    }
+  });
+
+function preencherModalPedido() {
+  if (!meuPedidoAtual) return;
+  const p = meuPedidoAtual;
+  const itensTexto = (p.itens || []).map(i => i.nome).join(", ");
+  const total = (p.itens || []).reduce((soma, i) => soma + (parseFloat(i.valor) || 0), 0);
+  const primeiraFoto = (p.itens || []).find(i => i.foto)?.foto || "";
+
+  document.getElementById("pedidoModalCliente").textContent = p.clienteNome || "cliente";
+  document.getElementById("pedidoModalNome").textContent = itensTexto || "pedido";
+  document.getElementById("pedidoModalDesc").textContent = `${itensTexto} — pagamento: ${p.formaPagamento || "não informado"}`;
+  document.getElementById("pedidoModalObs").textContent = p.observacao ? `observação: ${p.observacao}` : "";
+  document.getElementById("pedidoModalFoto").style.backgroundImage = primeiraFoto ? `url('${primeiraFoto}')` : "none";
+  document.getElementById("pedidoModalFoto").textContent = primeiraFoto ? "" : "foto do lanche";
+  document.getElementById("pedidoModalValor").textContent = "valor " + formatarValor(total);
+
+  const msgCancelado = document.getElementById("pedidoModalCanceladoMsg");
+  const btnPrevisao = document.getElementById("btnEnviarPrevisao");
+  const btnCancelar = document.getElementById("btnCancelarPedido");
+  const previsaoBox = document.getElementById("pedidoModalPrevisao");
+
+  if (p.cancelado) {
+    msgCancelado.style.display = "block";
+    btnPrevisao.style.display = "none";
+    btnCancelar.style.display = "none";
+    previsaoBox.style.display = "none";
+    if (intervaloContadorModal) clearInterval(intervaloContadorModal);
+    return;
+  }
+  msgCancelado.style.display = "none";
+  btnPrevisao.style.display = "block";
+  btnCancelar.style.display = "block";
+
+  if (intervaloContadorModal) clearInterval(intervaloContadorModal);
+  if (p.previsaoSolicitadaEm && p.previsaoSolicitadaEm.toDate) {
+    const alvoMs = p.previsaoSolicitadaEm.toDate().getTime() + 5 * 60000;
+    const atualizarContador = () => {
+      const restanteMs = alvoMs - Date.now();
+      if (restanteMs <= 0) {
+        previsaoBox.textContent = "previsão: a loja já foi avisada";
+        clearInterval(intervaloContadorModal);
+        return;
+      }
+      const min = Math.floor(restanteMs / 60000);
+      const seg = Math.floor((restanteMs % 60000) / 1000);
+      previsaoBox.textContent = `previsão enviada — mais ${min}:${String(seg).padStart(2, "0")}`;
+    };
+    previsaoBox.style.display = "block";
+    atualizarContador();
+    intervaloContadorModal = setInterval(atualizarContador, 1000);
+  } else {
+    previsaoBox.style.display = "none";
+  }
+}
+
+document.getElementById("verPedidoBtn").addEventListener("click", () => {
+  preencherModalPedido();
+  document.getElementById("modalPedidoOverlay").classList.add("aberto");
+});
+document.getElementById("pedidoModalFechar").addEventListener("click", () => {
+  document.getElementById("modalPedidoOverlay").classList.remove("aberto");
+  if (intervaloContadorModal) clearInterval(intervaloContadorModal);
+});
+
+document.getElementById("btnEnviarPrevisao").addEventListener("click", async () => {
+  if (!meuPedidoAtualId) return;
+  await lojaRef.collection("pedidos").doc(meuPedidoAtualId).update({
+    previsaoSolicitadaEm: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  alert("Previsão de +5 minutos enviada para a loja!");
+});
+
+document.getElementById("btnCancelarPedido").addEventListener("click", async () => {
+  if (!meuPedidoAtualId) return;
+  if (!confirm("Tem certeza que deseja cancelar este pedido?")) return;
+  await lojaRef.collection("pedidos").doc(meuPedidoAtualId).update({
+    cancelado: true,
+    canceladoEm: firebase.firestore.FieldValue.serverTimestamp()
+  });
 });
 
 /* ==========================================================================
