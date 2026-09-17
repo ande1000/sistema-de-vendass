@@ -46,8 +46,10 @@
       <h2 class="titulo-secao">loja</h2>
       <div class="status-loja-box">
         <div class="badge fechada" id="badgeLoja">loja fechada</div>
-        <div>
-          <button class="btn-toggle-loja" id="btnToggleLoja">abrir loja</button>
+        <div class="linha-botoes-loja">
+          <button class="btn-abrir-loja" id="btnAbrirLoja">abrir loja</button>
+          <button class="btn-fechar-loja" id="btnFecharLoja">fechar loja</button>
+          <button class="btn-relatorio" id="btnRelatorio">relatório</button>
         </div>
       </div>
     </section>
@@ -176,7 +178,7 @@
 
   <!-- NOTIFICAÇÕES -->
   <aside class="notificacoes">
-    <h3>🔔 notificação</h3>
+    <h3>🔔 notificação <span class="btn-sino" id="btnSino">som: ligado</span></h3>
     <div id="listaNotificacoes"></div>
   </aside>
 </div>
