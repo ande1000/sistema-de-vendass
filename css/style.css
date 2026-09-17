@@ -122,10 +122,15 @@ input, textarea { font-family: inherit; }
 .app {
   display: grid;
   grid-template-columns: 220px 1fr 200px;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "sidebar topo notif"
+    "sidebar conteudo notif";
   min-height: 100vh;
 }
 
 .sidebar {
+  grid-area: sidebar;
   background: var(--sidebar);
   padding: 18px 0;
   display: flex;
@@ -180,28 +185,31 @@ input, textarea { font-family: inherit; }
 }
 
 .topo {
+  grid-area: topo;
   background: var(--purple);
   display: flex;
   align-items: center;
   padding: 10px 24px;
   gap: 16px;
-  grid-column: 2 / 3;
 }
 .topo .logo-aguia { font-size: 2.2rem; }
 .topo h1 { font-size: 2rem; font-weight: 800; margin: 0; flex: 1; }
 .topo .slogan { font-size: 0.75rem; text-align: right; line-height: 1.2; font-weight: 600; }
 
 .notificacoes {
+  grid-area: notif;
   background: var(--bg);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
 }
 .notificacoes h3 { display:flex; align-items:center; gap:6px; font-size:0.95rem; margin: 0 0 8px; }
 .notificacoes .item { color: #8ef07a; font-weight: 700; font-size: 0.95rem; cursor: pointer; }
 
 .conteudo {
+  grid-area: conteudo;
   background: var(--gray-panel);
   color: #222;
   padding: 22px;
@@ -535,7 +543,12 @@ input, textarea { font-family: inherit; }
 .vazio-msg { text-align: center; padding: 40px 20px; color: #ccc; }
 
 @media (max-width: 860px) {
-  .app { grid-template-columns: 70px 1fr; }
+  .app {
+    grid-template-columns: 70px 1fr;
+    grid-template-areas:
+      "sidebar topo"
+      "sidebar conteudo";
+  }
   .app .notificacoes { display: none; }
   .perfil-loja .nome-loja, .menu-lateral li span.texto { display: none; }
   .topo .slogan { display: none; }
