@@ -107,20 +107,50 @@ function renderizarPedidos(snap) {
     if (p.saiu) { delete pedidoEtapaAnterior[doc.id]; return; } // pedido já foi entregue, some da tela
     contadorPedido++;
     const criadoEmMs = p.criadoEm && p.criadoEm.toDate ? p.criadoEm.toDate().getTime() : Date.now();
+    const nomeCliente = p.clienteNome || ("cliente " + doc.id.slice(0, 4));
+    const itensTexto = (p.itens || []).map(i => i.nome).join(", ");
+
+    // ---- pedido cancelado pelo cliente: mostra por 1 minuto e depois some ----
+    if (p.cancelado) {
+      const canceladoEmMs = p.canceladoEm && p.canceladoEm.toDate ? p.canceladoEm.toDate().getTime() : Date.now();
+      const anterior = pedidoEtapaAnterior[doc.id];
+      if (!anterior || !anterior.cancelado) {
+        if (somAtivado()) tocarSomCancelado();
+      }
+      pedidoEtapaAnterior[doc.id] = { etapa: "cancelado", atraso: false, cancelado: true, previsaoAtiva: false };
+
+      if (Date.now() - canceladoEmMs >= 60000) return; // some do painel depois de 1 minuto
+
+      const card = document.createElement("div");
+      card.className = "pedido-card";
+      card.innerHTML = `
+        <div class="linha1">pedido ${String(contadorPedido).padStart(2, "0")}</div>
+        <div class="itens">${escapeHtml(nomeCliente)} — ${escapeHtml(itensTexto)}</div>
+        <div class="tag-cancelado">pedido cancelado</div>
+      `;
+      colAndamento.appendChild(card);
+      return;
+    }
+
     const aceitoEmMs = p.aceitoEm && p.aceitoEm.toDate ? p.aceitoEm.toDate().getTime() : criadoEmMs;
     const { etapa, atraso } = calcularEtapaPedidoV2(p, aceitoEmMs);
 
-    // ---- detecta mudança de etapa/atraso pra tocar o som certo ----
+    // ---- previsão de +5 minutos pedida pelo cliente ----
+    const previsaoAtiva = !!p.previsaoSolicitadaEm;
+    let previsaoAlvoMs = null;
+    if (previsaoAtiva && p.previsaoSolicitadaEm.toDate) {
+      previsaoAlvoMs = p.previsaoSolicitadaEm.toDate().getTime() + 5 * 60000;
+    }
+
+    // ---- detecta mudança de etapa/atraso/previsão pra tocar o som certo ----
     const anterior = pedidoEtapaAnterior[doc.id];
     if (anterior) {
       if (anterior.etapa === "andamento" && etapa === "preparo" && somAtivado()) tocarSomPreparo();
       if (anterior.etapa === "preparo" && etapa === "pronto" && somAtivado()) tocarSomPronto();
       if (!anterior.atraso && atraso && somAtivado()) tocarSomAtraso();
+      if (!anterior.previsaoAtiva && previsaoAtiva && somAtivado()) tocarSomPrevisao();
     }
-    pedidoEtapaAnterior[doc.id] = { etapa, atraso };
-
-    const itensTexto = (p.itens || []).map(i => i.nome).join(", ");
-    const nomeCliente = p.clienteNome || ("cliente " + doc.id.slice(0, 4));
+    pedidoEtapaAnterior[doc.id] = { etapa, atraso, cancelado: false, previsaoAtiva };
 
     // notificação lateral
     const notifDiv = document.createElement("div");
@@ -135,6 +165,7 @@ function renderizarPedidos(snap) {
       <div class="itens">${escapeHtml(nomeCliente)} — ${escapeHtml(itensTexto)}</div>
       ${p.formaPagamento ? `<div class="itens">pagamento: ${escapeHtml(p.formaPagamento)}</div>` : ""}
       <div class="tempo">${new Date(criadoEmMs).toLocaleTimeString()}</div>
+      ${previsaoAlvoMs && previsaoAlvoMs > Date.now() ? `<div class="contador-previsao" data-alvo="${previsaoAlvoMs}">previsão: 5:00</div>` : ""}
     `;
 
     if (etapa === "aguardando") {
@@ -190,10 +221,26 @@ setInterval(() => {
 }, 6000);
 
 // recalcula as etapas dos pedidos a cada 20s, sem precisar reabrir a página
-// (o pedido avança de etapa sozinho conforme o tempo passa)
+// (o pedido avança de etapa sozinho conforme o tempo passa, e os cancelados
+// somem depois de 1 minuto)
 setInterval(() => {
   if (ultimoSnapPedidos) renderizarPedidos(ultimoSnapPedidos);
 }, 20000);
+
+// atualiza o "reloginho" da previsão (contagem regressiva) a cada segundo
+setInterval(() => {
+  document.querySelectorAll(".contador-previsao").forEach(el => {
+    const alvoMs = parseInt(el.dataset.alvo, 10);
+    const restanteMs = alvoMs - Date.now();
+    if (restanteMs <= 0) {
+      el.textContent = "previsão encerrada";
+      return;
+    }
+    const min = Math.floor(restanteMs / 60000);
+    const seg = Math.floor((restanteMs % 60000) / 1000);
+    el.textContent = `previsão: ${min}:${String(seg).padStart(2, "0")}`;
+  });
+}, 1000);
 
 /* ---------------- RELATÓRIO DE VENDAS ---------------- */
 function baixarArquivo(nomeArquivo, conteudoBlob) {
