@@ -6,4 +6,4 @@
   Também é possível abrir o site passando ?loja=ID_DA_LOJA na URL — nesse
   caso não precisa mexer aqui.
 */
-window.STORE_ID = "COLE_AQUI_O_ID_DA_LOJA";
+window.STORE_ID = "DImF22jwX7w4vTBZsoFc";
