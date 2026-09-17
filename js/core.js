@@ -89,6 +89,65 @@ function tocarBeepNotificacao() {
   }
 }
 
+// Toca um tom simples e curto (usado para montar os diferentes avisos sonoros)
+function tocarTom(ctx, frequencia, inicioSeg, duracaoSeg) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "sine";
+  osc.frequency.value = frequencia;
+  const t0 = ctx.currentTime + inicioSeg;
+  gain.gain.setValueAtTime(0.001, t0);
+  gain.gain.exponentialRampToValueAtTime(0.3, t0 + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + duracaoSeg);
+  osc.start(t0);
+  osc.stop(t0 + duracaoSeg + 0.05);
+}
+
+function novoAudioContext() {
+  try {
+    return new (window.AudioContext || window.webkitAudioContext)();
+  } catch (e) {
+    console.warn("Não foi possível criar o áudio:", e);
+    return null;
+  }
+}
+
+// Alarme repetido: pedido chegou e está esperando alguém aceitar
+function tocarSomAguardando() {
+  const ctx = novoAudioContext();
+  if (!ctx) return;
+  tocarTom(ctx, 880, 0, 0.3);
+  tocarTom(ctx, 1100, 0.22, 0.3);
+}
+
+// Pedido aceito, passou de "andamento" para "em preparo"
+function tocarSomPreparo() {
+  const ctx = novoAudioContext();
+  if (!ctx) return;
+  tocarTom(ctx, 600, 0, 0.25);
+  tocarTom(ctx, 750, 0.2, 0.25);
+}
+
+// Pedido ficou pronto
+function tocarSomPronto() {
+  const ctx = novoAudioContext();
+  if (!ctx) return;
+  tocarTom(ctx, 1000, 0, 0.18);
+  tocarTom(ctx, 1300, 0.16, 0.18);
+  tocarTom(ctx, 1600, 0.32, 0.25);
+}
+
+// Pedido ficou em atraso (alerta, tom mais grave e repetido)
+function tocarSomAtraso() {
+  const ctx = novoAudioContext();
+  if (!ctx) return;
+  tocarTom(ctx, 400, 0, 0.2);
+  tocarTom(ctx, 400, 0.28, 0.2);
+  tocarTom(ctx, 400, 0.56, 0.2);
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str || "";
