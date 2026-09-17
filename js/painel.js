@@ -88,7 +88,7 @@ atualizarBotaoSino();
 
 /* ---------------- PEDIDOS (KANBAN) ---------------- */
 let ultimoSnapPedidos = null;
-let idsPedidosConhecidos = null; // null = ainda não carregou pela 1ª vez
+let pedidoEtapaAnterior = {}; // id do pedido -> última etapa/atraso conhecida (pra saber quando tocar cada som)
 
 function renderizarPedidos(snap) {
   const colAndamento = document.getElementById("col-andamento");
@@ -104,11 +104,20 @@ function renderizarPedidos(snap) {
 
   snap.forEach(doc => {
     const p = doc.data();
-    if (p.saiu) return; // pedido já foi entregue, some da tela
+    if (p.saiu) { delete pedidoEtapaAnterior[doc.id]; return; } // pedido já foi entregue, some da tela
     contadorPedido++;
     const criadoEmMs = p.criadoEm && p.criadoEm.toDate ? p.criadoEm.toDate().getTime() : Date.now();
     const aceitoEmMs = p.aceitoEm && p.aceitoEm.toDate ? p.aceitoEm.toDate().getTime() : criadoEmMs;
     const { etapa, atraso } = calcularEtapaPedidoV2(p, aceitoEmMs);
+
+    // ---- detecta mudança de etapa/atraso pra tocar o som certo ----
+    const anterior = pedidoEtapaAnterior[doc.id];
+    if (anterior) {
+      if (anterior.etapa === "andamento" && etapa === "preparo" && somAtivado()) tocarSomPreparo();
+      if (anterior.etapa === "preparo" && etapa === "pronto" && somAtivado()) tocarSomPronto();
+      if (!anterior.atraso && atraso && somAtivado()) tocarSomAtraso();
+    }
+    pedidoEtapaAnterior[doc.id] = { etapa, atraso };
 
     const itensTexto = (p.itens || []).map(i => i.nome).join(", ");
     const nomeCliente = p.clienteNome || ("cliente " + doc.id.slice(0, 4));
@@ -165,24 +174,20 @@ function renderizarPedidos(snap) {
 }
 
 lojaRef.collection("pedidos").orderBy("criadoEm", "desc").onSnapshot(snap => {
-  // detecta pedidos novos (que chegaram agora) para tocar o som e ignora
-  // a primeira carga da página (senão tocaria pra todos os pedidos antigos)
-  if (idsPedidosConhecidos === null) {
-    idsPedidosConhecidos = new Set(snap.docs.map(d => d.id));
-  } else {
-    let temPedidoNovo = false;
-    snap.docChanges().forEach(change => {
-      if (change.type === "added" && !idsPedidosConhecidos.has(change.doc.id)) {
-        temPedidoNovo = true;
-        idsPedidosConhecidos.add(change.doc.id);
-      }
-    });
-    if (temPedidoNovo && somAtivado()) tocarBeepNotificacao();
-  }
-
   ultimoSnapPedidos = snap;
   renderizarPedidos(snap);
 });
+
+// alarme repetido: toca a cada poucos segundos enquanto tiver algum pedido
+// esperando alguém aceitar, e para sozinho assim que for aceito
+setInterval(() => {
+  if (!ultimoSnapPedidos || !somAtivado()) return;
+  const temAguardando = ultimoSnapPedidos.docs.some(doc => {
+    const p = doc.data();
+    return !p.saiu && !p.aceito;
+  });
+  if (temAguardando) tocarSomAguardando();
+}, 6000);
 
 // recalcula as etapas dos pedidos a cada 20s, sem precisar reabrir a página
 // (o pedido avança de etapa sozinho conforme o tempo passa)
