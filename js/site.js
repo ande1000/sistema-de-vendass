@@ -38,15 +38,19 @@ lojaRef.onSnapshot(doc => {
 });
 
 /* ---------------- CARDÁPIO ---------------- */
+let produtosCache = {}; // id -> dados do produto (usado pelo modal e pelo carrinho)
+
 lojaRef.collection("produtos").orderBy("criadoEm", "desc").onSnapshot(snap => {
   const lista = document.getElementById("siteLista");
   lista.innerHTML = "";
+  produtosCache = {};
   if (snap.empty) {
     lista.innerHTML = '<p class="vazio-msg">nenhum lanche disponível no momento.</p>';
     return;
   }
   snap.forEach(doc => {
     const p = doc.data();
+    produtosCache[doc.id] = p;
     const card = document.createElement("div");
     card.className = "produto-card";
     card.innerHTML = `
@@ -56,34 +60,156 @@ lojaRef.collection("produtos").orderBy("criadoEm", "desc").onSnapshot(snap => {
         <div class="desc">${escapeHtml(p.descricao || "")}</div>
         <div class="valor">${formatarValor(p.valor)}</div>
       </div>
-      <button class="btn-comprar" data-id="${doc.id}">comprar</button>
+      <button class="btn-comprar" data-id="${doc.id}">adicionar</button>
     `;
-    card.querySelector(".btn-comprar").addEventListener("click", () => comprarProduto(doc.id, p));
+    card.querySelector(".btn-comprar").addEventListener("click", () => abrirModalProduto(doc.id));
     lista.appendChild(card);
   });
 });
 
-/* ---------------- COMPRAR (cria pedido + abre chat) ---------------- */
-async function comprarProduto(produtoId, produto) {
+/* ==========================================================================
+   MODAL DE PRODUTO (escolher quantidade e adicionar ao carrinho)
+   ========================================================================== */
+let produtoModalId = null;
+let produtoModalQtd = 1;
+
+function abrirModalProduto(produtoId) {
+  const p = produtosCache[produtoId];
+  if (!p) return;
+  produtoModalId = produtoId;
+  produtoModalQtd = 1;
+
+  document.getElementById("modalProdutoNome").textContent = p.nome;
+  document.getElementById("modalProdutoFoto").style.backgroundImage = p.foto ? `url('${p.foto}')` : "none";
+  document.getElementById("modalProdutoDesc").textContent = p.descricao || "";
+  document.getElementById("modalProdutoValor").textContent = formatarValor(p.valor);
+  document.getElementById("modalQtdValor").textContent = "1";
+
+  document.getElementById("modalProdutoOverlay").classList.add("aberto");
+}
+
+document.getElementById("modalProdutoFechar").addEventListener("click", () => {
+  document.getElementById("modalProdutoOverlay").classList.remove("aberto");
+});
+document.getElementById("modalQtdMenos").addEventListener("click", () => {
+  produtoModalQtd = Math.max(1, produtoModalQtd - 1);
+  document.getElementById("modalQtdValor").textContent = produtoModalQtd;
+});
+document.getElementById("modalQtdMais").addEventListener("click", () => {
+  produtoModalQtd = Math.min(20, produtoModalQtd + 1);
+  document.getElementById("modalQtdValor").textContent = produtoModalQtd;
+});
+
+document.getElementById("modalAdicionarBtn").addEventListener("click", () => {
+  if (!produtoModalId) return;
+  adicionarAoCarrinho(produtoModalId, produtoModalQtd);
+  document.getElementById("modalProdutoOverlay").classList.remove("aberto");
+});
+
+/* ==========================================================================
+   CARRINHO
+   ========================================================================== */
+let carrinho = []; // [{produtoId, nome, valor, qtd}]
+
+function adicionarAoCarrinho(produtoId, qtd) {
+  const p = produtosCache[produtoId];
+  if (!p) return;
+  const existente = carrinho.find(i => i.produtoId === produtoId);
+  if (existente) existente.qtd += qtd;
+  else carrinho.push({ produtoId, nome: p.nome, valor: p.valor, qtd });
+  atualizarBadgeCarrinho();
+}
+
+function removerDoCarrinho(produtoId) {
+  carrinho = carrinho.filter(i => i.produtoId !== produtoId);
+  atualizarBadgeCarrinho();
+  renderizarCarrinho();
+}
+
+function atualizarBadgeCarrinho() {
+  const totalItens = carrinho.reduce((soma, i) => soma + i.qtd, 0);
+  const badge = document.getElementById("carrinhoBadge");
+  if (totalItens > 0) {
+    badge.textContent = totalItens;
+    badge.style.display = "block";
+  } else {
+    badge.style.display = "none";
+  }
+}
+
+function renderizarCarrinho() {
+  const container = document.getElementById("carrinhoListaItens");
+  container.innerHTML = "";
+  let total = 0;
+
+  if (carrinho.length === 0) {
+    container.innerHTML = '<p class="vazio-msg">seu carrinho está vazio.</p>';
+  }
+
+  carrinho.forEach(item => {
+    total += item.valor * item.qtd;
+    const div = document.createElement("div");
+    div.className = "carrinho-item";
+    div.innerHTML = `
+      <span>${item.qtd}x ${escapeHtml(item.nome)} — ${formatarValor(item.valor * item.qtd)}</span>
+      <button class="remover" data-id="${item.produtoId}">remover</button>
+    `;
+    div.querySelector(".remover").addEventListener("click", () => removerDoCarrinho(item.produtoId));
+    container.appendChild(div);
+  });
+
+  document.getElementById("carrinhoTotal").textContent = "Total: " + formatarValor(total);
+}
+
+document.getElementById("carrinhoToggleBtn").addEventListener("click", () => {
+  renderizarCarrinho();
+  document.getElementById("modalCarrinhoOverlay").classList.add("aberto");
+});
+document.getElementById("modalCarrinhoFechar").addEventListener("click", () => {
+  document.getElementById("modalCarrinhoOverlay").classList.remove("aberto");
+});
+
+document.getElementById("btnFinalizarCompra").addEventListener("click", async () => {
+  if (carrinho.length === 0) {
+    alert("seu carrinho está vazio. Adicione pelo menos um item.");
+    return;
+  }
+
+  const observacao = document.getElementById("carrinhoObservacao").value.trim();
+  const formaPagamento = document.getElementById("carrinhoPagamento").value;
+
   const clienteSnap = await clienteRef.get();
   const cliente = clienteSnap.data() || {};
+
+  const itensPedido = carrinho.map(i => ({ nome: `${i.qtd}x ${i.nome}`, valor: i.valor * i.qtd }));
 
   await lojaRef.collection("pedidos").add({
     clienteId,
     clienteNome: cliente.nome || "cliente",
     endereco: cliente.endereco || "",
-    itens: [{ nome: produto.nome, valor: produto.valor }],
+    itens: itensPedido,
+    observacao,
+    formaPagamento,
+    aceito: false,
     saiu: false,
     criadoEm: firebase.firestore.FieldValue.serverTimestamp()
   });
 
   await clienteRef.update({ ultimaMensagemEm: firebase.firestore.FieldValue.serverTimestamp() });
 
+  const resumoItens = carrinho.map(i => `${i.qtd}x ${i.nome}`).join(", ");
+  const totalPedido = carrinho.reduce((soma, i) => soma + i.valor * i.qtd, 0);
+
+  carrinho = [];
+  atualizarBadgeCarrinho();
+  document.getElementById("carrinhoObservacao").value = "";
+  document.getElementById("modalCarrinhoOverlay").classList.remove("aberto");
+
   abrirChat();
-  await enviarMensagemAutomatica(
-    `Quero comprar: ${produto.nome} (${formatarValor(produto.valor)})`
-  );
-}
+  let mensagem = `Pedido feito: ${resumoItens} — total ${formatarValor(totalPedido)} — pagamento: ${formaPagamento}`;
+  if (observacao) mensagem += ` — obs: ${observacao}`;
+  await enviarMensagemAutomatica(mensagem);
+});
 
 /* ==========================================================================
    CHAT
