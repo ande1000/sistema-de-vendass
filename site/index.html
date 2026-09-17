@@ -26,29 +26,15 @@
   <span class="ver-pedido-texto">ver pedido</span>
 </div>
 
-<!-- MODAL: detalhes do pedido -->
+<!-- MODAL: detalhes do(s) pedido(s) -->
 <div class="modal-overlay" id="modalPedidoOverlay">
   <div class="modal-caixa">
     <div class="modal-header-verde">
       <span id="pedidoModalCliente">nome do cliente</span>
       <span class="fechar" id="pedidoModalFechar">✕</span>
     </div>
-    <div class="modal-corpo">
-      <h2 id="pedidoModalNome">nome do pedido</h2>
-      <div class="pedido-modal-linha">
-        <div class="produto-modal-foto" id="pedidoModalFoto">foto do lanche</div>
-        <div>
-          <p id="pedidoModalDesc"></p>
-          <p class="pedido-modal-obs" id="pedidoModalObs"></p>
-        </div>
-      </div>
-      <p class="pedido-modal-valor" id="pedidoModalValor">valor R$ ...</p>
-      <p id="pedidoModalPrevisao" class="pedido-modal-previsao" style="display:none"></p>
-      <p id="pedidoModalCanceladoMsg" class="pedido-modal-cancelado-msg" style="display:none">pedido cancelado</p>
-    </div>
-    <div class="modal-rodape" style="display:flex; flex-direction:column; gap:10px; align-items:center;">
-      <button class="btn-previsao" id="btnEnviarPrevisao">enviar previsão</button>
-      <button class="btn-cancelar-pedido" id="btnCancelarPedido">cancelar pedido</button>
+    <div class="modal-corpo" id="pedidoModalLista">
+      <!-- cada pedido ativo do cliente é inserido aqui pelo site.js -->
     </div>
   </div>
 </div>
