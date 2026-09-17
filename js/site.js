@@ -216,112 +216,118 @@ document.getElementById("btnFinalizarCompra").addEventListener("click", async ()
 });
 
 /* ==========================================================================
-   VER PEDIDO (acompanhar o pedido feito, pedir previsão, cancelar)
+   VER PEDIDO (acompanhar o(s) pedido(s), pedir previsão, cancelar)
    ========================================================================== */
-let meuPedidoAtual = null;   // dados do pedido ativo mais recente
-let meuPedidoAtualId = null;
-let intervaloContadorModal = null;
+let meusPedidosAtivos = []; // [{id, ...dados}] todos os pedidos ativos do cliente
+let intervalosContadorModal = []; // um intervalo de contagem por pedido aberto no modal
 
 lojaRef.collection("pedidos").where("clienteId", "==", clienteId)
   .orderBy("criadoEm", "desc")
   .onSnapshot(snap => {
-    // pega o pedido mais recente que ainda não saiu nem foi cancelado
-    let encontrado = null, encontradoId = null;
+    meusPedidosAtivos = [];
     snap.forEach(doc => {
-      if (encontrado) return;
       const p = doc.data();
-      if (!p.saiu && !p.cancelado) { encontrado = p; encontradoId = doc.id; }
+      if (!p.saiu && !p.cancelado) meusPedidosAtivos.push({ id: doc.id, ...p });
     });
 
-    meuPedidoAtual = encontrado;
-    meuPedidoAtualId = encontradoId;
+    document.getElementById("verPedidoWrap").style.display = meusPedidosAtivos.length > 0 ? "flex" : "none";
 
-    document.getElementById("verPedidoWrap").style.display = encontrado ? "flex" : "none";
-
-    // se o modal estiver aberto, atualiza o conteúdo dele em tempo real
+    // se o modal já estiver aberto, atualiza o conteúdo em tempo real
     if (document.getElementById("modalPedidoOverlay").classList.contains("aberto")) {
-      preencherModalPedido();
+      renderizarListaPedidosModal();
     }
   });
 
-function preencherModalPedido() {
-  if (!meuPedidoAtual) return;
-  const p = meuPedidoAtual;
-  const itensTexto = (p.itens || []).map(i => i.nome).join(", ");
-  const total = (p.itens || []).reduce((soma, i) => soma + (parseFloat(i.valor) || 0), 0);
-  const primeiraFoto = (p.itens || []).find(i => i.foto)?.foto || "";
+function limparIntervalosContador() {
+  intervalosContadorModal.forEach(id => clearInterval(id));
+  intervalosContadorModal = [];
+}
 
-  document.getElementById("pedidoModalCliente").textContent = p.clienteNome || "cliente";
-  document.getElementById("pedidoModalNome").textContent = itensTexto || "pedido";
-  document.getElementById("pedidoModalDesc").textContent = `${itensTexto} — pagamento: ${p.formaPagamento || "não informado"}`;
-  document.getElementById("pedidoModalObs").textContent = p.observacao ? `observação: ${p.observacao}` : "";
-  document.getElementById("pedidoModalFoto").style.backgroundImage = primeiraFoto ? `url('${primeiraFoto}')` : "none";
-  document.getElementById("pedidoModalFoto").textContent = primeiraFoto ? "" : "foto do lanche";
-  document.getElementById("pedidoModalValor").textContent = "valor " + formatarValor(total);
+function renderizarListaPedidosModal() {
+  limparIntervalosContador();
+  const container = document.getElementById("pedidoModalLista");
+  container.innerHTML = "";
 
-  const msgCancelado = document.getElementById("pedidoModalCanceladoMsg");
-  const btnPrevisao = document.getElementById("btnEnviarPrevisao");
-  const btnCancelar = document.getElementById("btnCancelarPedido");
-  const previsaoBox = document.getElementById("pedidoModalPrevisao");
-
-  if (p.cancelado) {
-    msgCancelado.style.display = "block";
-    btnPrevisao.style.display = "none";
-    btnCancelar.style.display = "none";
-    previsaoBox.style.display = "none";
-    if (intervaloContadorModal) clearInterval(intervaloContadorModal);
+  if (meusPedidosAtivos.length === 0) {
+    container.innerHTML = '<p class="vazio-msg">você não tem pedidos em andamento.</p>';
     return;
   }
-  msgCancelado.style.display = "none";
-  btnPrevisao.style.display = "block";
-  btnCancelar.style.display = "block";
 
-  if (intervaloContadorModal) clearInterval(intervaloContadorModal);
-  if (p.previsaoSolicitadaEm && p.previsaoSolicitadaEm.toDate) {
-    const alvoMs = p.previsaoSolicitadaEm.toDate().getTime() + 5 * 60000;
-    const atualizarContador = () => {
-      const restanteMs = alvoMs - Date.now();
-      if (restanteMs <= 0) {
-        previsaoBox.textContent = "previsão: a loja já foi avisada";
-        clearInterval(intervaloContadorModal);
-        return;
-      }
-      const min = Math.floor(restanteMs / 60000);
-      const seg = Math.floor((restanteMs % 60000) / 1000);
-      previsaoBox.textContent = `previsão enviada — mais ${min}:${String(seg).padStart(2, "0")}`;
-    };
-    previsaoBox.style.display = "block";
-    atualizarContador();
-    intervaloContadorModal = setInterval(atualizarContador, 1000);
-  } else {
-    previsaoBox.style.display = "none";
-  }
+  document.getElementById("pedidoModalCliente").textContent = meusPedidosAtivos[0].clienteNome || "cliente";
+
+  meusPedidosAtivos.forEach((p, index) => {
+    const itensTexto = (p.itens || []).map(i => i.nome).join(", ");
+    const total = (p.itens || []).reduce((soma, i) => soma + (parseFloat(i.valor) || 0), 0);
+    const primeiraFoto = (p.itens || []).find(i => i.foto)?.foto || "";
+
+    const bloco = document.createElement("div");
+    bloco.className = "pedido-item-modal";
+    bloco.innerHTML = `
+      <h2>pedido ${index + 1}</h2>
+      <div class="pedido-modal-linha">
+        <div class="produto-modal-foto" style="${primeiraFoto ? `background-image:url('${primeiraFoto}')` : ""}">${primeiraFoto ? "" : "foto do lanche"}</div>
+        <div>
+          <p>${escapeHtml(itensTexto)} — pagamento: ${escapeHtml(p.formaPagamento || "não informado")}</p>
+          ${p.observacao ? `<p class="pedido-modal-obs">observação: ${escapeHtml(p.observacao)}</p>` : ""}
+        </div>
+      </div>
+      <p class="pedido-modal-valor">valor ${formatarValor(total)}</p>
+      <p class="pedido-modal-previsao" style="display:none"></p>
+      <div class="pedido-item-botoes">
+        <button class="btn-previsao-mini" data-id="${p.id}">enviar previsão</button>
+        <button class="btn-cancelar-mini" data-id="${p.id}">cancelar</button>
+      </div>
+    `;
+
+    // botão de previsão
+    bloco.querySelector(".btn-previsao-mini").addEventListener("click", async (e) => {
+      e.target.disabled = true;
+      await lojaRef.collection("pedidos").doc(p.id).update({
+        previsaoSolicitadaEm: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      alert(`Previsão de +5 minutos enviada para o pedido ${index + 1}!`);
+      e.target.disabled = false;
+    });
+
+    // botão de cancelar
+    bloco.querySelector(".btn-cancelar-mini").addEventListener("click", async (e) => {
+      if (!confirm(`Cancelar o pedido ${index + 1}?`)) return;
+      await lojaRef.collection("pedidos").doc(p.id).update({
+        cancelado: true,
+        canceladoEm: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    // contador regressivo da previsão (se já tiver sido pedida pra esse pedido)
+    const previsaoBox = bloco.querySelector(".pedido-modal-previsao");
+    if (p.previsaoSolicitadaEm && p.previsaoSolicitadaEm.toDate) {
+      const alvoMs = p.previsaoSolicitadaEm.toDate().getTime() + 5 * 60000;
+      const atualizar = () => {
+        const restanteMs = alvoMs - Date.now();
+        if (restanteMs <= 0) {
+          previsaoBox.textContent = "previsão: a loja já foi avisada";
+          return;
+        }
+        const min = Math.floor(restanteMs / 60000);
+        const seg = Math.floor((restanteMs % 60000) / 1000);
+        previsaoBox.textContent = `previsão enviada — mais ${min}:${String(seg).padStart(2, "0")}`;
+      };
+      previsaoBox.style.display = "block";
+      atualizar();
+      intervalosContadorModal.push(setInterval(atualizar, 1000));
+    }
+
+    container.appendChild(bloco);
+  });
 }
 
 document.getElementById("verPedidoBtn").addEventListener("click", () => {
-  preencherModalPedido();
+  renderizarListaPedidosModal();
   document.getElementById("modalPedidoOverlay").classList.add("aberto");
 });
 document.getElementById("pedidoModalFechar").addEventListener("click", () => {
   document.getElementById("modalPedidoOverlay").classList.remove("aberto");
-  if (intervaloContadorModal) clearInterval(intervaloContadorModal);
-});
-
-document.getElementById("btnEnviarPrevisao").addEventListener("click", async () => {
-  if (!meuPedidoAtualId) return;
-  await lojaRef.collection("pedidos").doc(meuPedidoAtualId).update({
-    previsaoSolicitadaEm: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  alert("Previsão de +5 minutos enviada para a loja!");
-});
-
-document.getElementById("btnCancelarPedido").addEventListener("click", async () => {
-  if (!meuPedidoAtualId) return;
-  if (!confirm("Tem certeza que deseja cancelar este pedido?")) return;
-  await lojaRef.collection("pedidos").doc(meuPedidoAtualId).update({
-    cancelado: true,
-    canceladoEm: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  limparIntervalosContador();
 });
 
 /* ==========================================================================
