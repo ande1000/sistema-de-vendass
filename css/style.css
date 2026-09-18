@@ -236,7 +236,7 @@ input, textarea { font-family: inherit; }
 }
 
 /* status loja */
-.status-loja-box { text-align: center; padding: 40px 0; }
+.status-loja-box { text-align: center; padding: 14px 0 40px; }
 .status-loja-box .badge {
   display: inline-block;
   padding: 14px 32px;
