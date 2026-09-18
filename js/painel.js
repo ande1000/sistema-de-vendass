@@ -495,6 +495,68 @@ const chatJanela = document.getElementById("chatJanela");
 const chatListaView = document.getElementById("chatListaView");
 const chatConversaView = document.getElementById("chatConversaView");
 const chatHeaderTitulo = document.getElementById("chatHeaderTitulo");
+const chatBadgeGeral = document.getElementById("chatBadge");
+
+let naoLidasPorCliente = {};       // clienteId -> quantidade de mensagens não lidas
+let listenersMensagensAtivos = {}; // clienteId -> true (evita duplicar o listener)
+let mensagensJaVistas = {};        // clienteId -> Set com ids já conhecidos (pra saber quando é mensagem NOVA)
+
+function getUltimaLeituraMs(clienteId) {
+  const v = localStorage.getItem("chat_lido_" + clienteId);
+  return v ? parseInt(v, 10) : 0;
+}
+function marcarConversaComoLida(clienteId) {
+  localStorage.setItem("chat_lido_" + clienteId, Date.now().toString());
+  naoLidasPorCliente[clienteId] = 0;
+  atualizarBadgeChatGeral();
+}
+
+function atualizarBadgeChatGeral() {
+  const total = Object.values(naoLidasPorCliente).reduce((a, b) => a + b, 0);
+  if (total > 0) {
+    chatBadgeGeral.textContent = total;
+    chatBadgeGeral.style.display = "flex";
+  } else {
+    chatBadgeGeral.style.display = "none";
+  }
+}
+
+// fica de olho nas mensagens de um cliente pra contar não lidas e tocar som
+function iniciarListenerMensagens(clienteId) {
+  if (listenersMensagensAtivos[clienteId]) return;
+  listenersMensagensAtivos[clienteId] = true;
+  mensagensJaVistas[clienteId] = null; // null = ainda não carregou pela 1ª vez
+
+  lojaRef.collection("clientes").doc(clienteId).collection("chat")
+    .orderBy("criadoEm", "asc")
+    .onSnapshot(snap => {
+      const conversaAberta = clienteChatSelecionado === clienteId && chatJanela.classList.contains("aberto");
+      if (conversaAberta) marcarConversaComoLida(clienteId);
+
+      const lastRead = getUltimaLeituraMs(clienteId);
+      let naoLidas = 0;
+      snap.forEach(doc => {
+        const m = doc.data();
+        const ms = m.criadoEm && m.criadoEm.toDate ? m.criadoEm.toDate().getTime() : 0;
+        if (m.autor === "cliente" && ms > lastRead) naoLidas++;
+      });
+      naoLidasPorCliente[clienteId] = conversaAberta ? 0 : naoLidas;
+      atualizarBadgeChatGeral();
+
+      // toca som só quando chega mensagem NOVA (não na primeira carga da página)
+      if (mensagensJaVistas[clienteId] === null) {
+        mensagensJaVistas[clienteId] = new Set(snap.docs.map(d => d.id));
+      } else {
+        snap.docChanges().forEach(change => {
+          if (change.type === "added" && !mensagensJaVistas[clienteId].has(change.doc.id)) {
+            mensagensJaVistas[clienteId].add(change.doc.id);
+            const m = change.doc.data();
+            if (m.autor === "cliente" && !conversaAberta && somAtivado()) tocarSomMensagem();
+          }
+        });
+      }
+    });
+}
 
 chatToggleBtn.addEventListener("click", () => {
   chatJanela.classList.toggle("aberto");
@@ -513,9 +575,15 @@ lojaRef.collection("clientes").orderBy("ultimaMensagemEm", "desc").onSnapshot(sn
   }
   snap.forEach(doc => {
     const c = doc.data();
+    iniciarListenerMensagens(doc.id);
+
     const item = document.createElement("div");
     item.className = "chat-conversa-item";
-    item.textContent = c.nome || ("cliente " + doc.id.slice(0, 4));
+    const naoLidas = naoLidasPorCliente[doc.id] || 0;
+    item.innerHTML = `
+      <span>${escapeHtml(c.nome || ("cliente " + doc.id.slice(0, 4)))}</span>
+      ${naoLidas > 0 ? `<span class="chat-conversa-badge">${naoLidas}</span>` : ""}
+    `;
     item.addEventListener("click", () => abrirConversa(doc.id, c.nome));
     container.appendChild(item);
   });
@@ -526,6 +594,7 @@ function abrirConversa(clienteId, nomeCliente) {
   chatHeaderTitulo.textContent = nomeCliente || "conversa";
   chatListaView.style.display = "none";
   chatConversaView.style.display = "flex";
+  marcarConversaComoLida(clienteId);
 
   if (unsubChatMsgs) unsubChatMsgs();
   unsubChatMsgs = lojaRef.collection("clientes").doc(clienteId).collection("chat")
