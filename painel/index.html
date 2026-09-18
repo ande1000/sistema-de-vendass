@@ -141,15 +141,19 @@
       <div class="config-grid">
         <div class="config-item">
           <label>nome da loja</label>
-          <input type="text" id="configNomeLoja" class="campo" style="color:#222">
-          <button class="btn-salvar" id="btnSalvarNomeLoja" style="margin-top:10px">salvar nome</button>
+          <div class="config-linha">
+            <input type="text" id="configNomeLoja" class="campo-config">
+            <button class="btn-salvar-mini" id="btnSalvarNomeLoja">salvar</button>
+          </div>
         </div>
         <div class="config-item">
           <label>foto da loja</label>
-          <label class="foto-produto-preview" id="labelFotoConfig" style="border-radius:50%">
-            trocar foto
-            <input type="file" accept="image/*" id="inputFotoConfig" style="display:none">
-          </label>
+          <div class="config-linha">
+            <label class="foto-config-preview" id="labelFotoConfig">
+              <span>trocar</span>
+              <input type="file" accept="image/*" id="inputFotoConfig" style="display:none">
+            </label>
+          </div>
         </div>
         <div class="config-item">
           <label>cor de fundo do sistema</label>
