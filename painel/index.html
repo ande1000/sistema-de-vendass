@@ -28,6 +28,7 @@
       <li data-secao="catalogo"><span class="bolinha"></span><span class="texto">catálogo</span></li>
       <li data-secao="configuracao"><span class="bolinha"></span><span class="texto">configuração</span></li>
       <li data-secao="ajuda"><span class="bolinha"></span><span class="texto">ajuda</span></li>
+      <li data-secao="tirapedido"><span class="bolinha"></span><span class="texto">tira pedido</span></li>
     </ul>
   </aside>
 
@@ -176,6 +177,28 @@
         <p>Precisa de ajuda com o sistema o águia? Entre em contato com o desenvolvedor responsável pelo sistema para tirar dúvidas, relatar problemas ou pedir novas funções.</p>
         <p><strong>suporte:</strong> fale com o dono do sistema pelo contato combinado com você.</p>
       </div>
+    </section>
+
+    <!-- TIRA PEDIDO (pedido manual, tipo por telefone) -->
+    <section id="sec-tirapedido" style="display:none">
+      <h2 class="titulo-secao">tira pedido</h2>
+      <form class="form-produto" id="formTiraPedido">
+        <label>nome do cliente</label>
+        <input type="text" id="tpNomeCliente" placeholder="ex: Maria" required>
+        <label>nome do pedido</label>
+        <input type="text" id="tpNomePedido" placeholder="ex: 2x x-tudo + coca lata" required>
+        <label>valor do pedido (R$)</label>
+        <input type="number" id="tpValor" placeholder="0.00" step="0.01" min="0" required>
+        <label>endereço</label>
+        <input type="text" id="tpEndereco" placeholder="ex: rua tal, 123, bairro">
+        <label>forma de pagamento</label>
+        <select id="tpPagamento">
+          <option value="Pix">Pix</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Cartão">Cartão</option>
+        </select>
+        <button type="submit" class="btn-salvar">fazer pedido</button>
+      </form>
     </section>
 
   </main>
