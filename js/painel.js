@@ -368,6 +368,32 @@ document.getElementById("btnRelatorio").addEventListener("click", async () => {
   btn.textContent = "relatório";
 });
 
+/* ---------------- TIRA PEDIDO (pedido manual, tipo por telefone) ---------------- */
+document.getElementById("formTiraPedido").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nomeCliente = document.getElementById("tpNomeCliente").value.trim();
+  const nomePedido = document.getElementById("tpNomePedido").value.trim();
+  const valor = parseFloat(document.getElementById("tpValor").value || 0);
+  const endereco = document.getElementById("tpEndereco").value.trim();
+  const formaPagamento = document.getElementById("tpPagamento").value;
+
+  if (!nomeCliente || !nomePedido || !valor) return;
+
+  await lojaRef.collection("pedidos").add({
+    clienteId: null,
+    clienteNome: nomeCliente,
+    endereco,
+    itens: [{ nome: nomePedido, valor }],
+    formaPagamento,
+    aceito: false,
+    saiu: false,
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  e.target.reset();
+  mostrarSecao("pedidos");
+});
+
 /* ---------------- CARDÁPIO ---------------- */
 function renderizarCardapio(containerId) {
   return function (snap) {
