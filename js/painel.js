@@ -519,6 +519,15 @@ document.querySelectorAll(".swatch").forEach(sw => {
   });
 });
 
+document.getElementById("btnSairConta").addEventListener("click", () => {
+  if (!confirm("Tem certeza que deseja sair da conta?")) return;
+  localStorage.removeItem("loja_id");
+  localStorage.removeItem("loja_nome");
+  localStorage.removeItem("loja_usuario");
+  localStorage.removeItem("loja_foto");
+  window.location.href = "cadastro.html";
+});
+
 /* ==========================================================================
    CHAT
    ========================================================================== */
