@@ -79,3 +79,68 @@ input, textarea { font-family: inherit; }
   color: var(--red-text);
   font-weight: 700;
   font-size: 1rem;
+  text-align: center;
+}
+.campo::placeholder { color: var(--red-text); opacity: 0.85; }
+
+.btn-criar {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #10330f;
+  font-weight: 800;
+  font-size: 1.2rem;
+  margin-top: 12px;
+  transition: transform .15s ease, background .15s ease;
+}
+.btn-criar:hover { background: var(--green-dark); transform: translateY(-1px); }
+
+.btn-criar-azul {
+  background: #1f7ae0;
+  color: var(--white);
+}
+.btn-criar-azul:hover { background: #1665bd; }
+
+.link-secundario {
+  display: block;
+  margin-top: 18px;
+  font-size: 0.85rem;
+  color: #e5e5e5;
+  text-decoration: underline;
+}
+
+.erro-msg {
+  color: #ffb3b3;
+  font-size: 0.85rem;
+  margin-top: -6px;
+  margin-bottom: 12px;
+  min-height: 18px;
+}
+
+/* ---------- LAYOUT PAINEL ---------- */
+.app {
+  display: grid;
+  grid-template-columns: 220px 1fr 200px;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "sidebar topo notif"
+    "sidebar conteudo notif";
+  min-height: 100vh;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  background: var(--sidebar);
+  padding: 18px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.perfil-loja {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  margin-bottom:
